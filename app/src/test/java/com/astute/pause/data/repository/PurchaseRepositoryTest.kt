@@ -8,6 +8,9 @@ import com.astute.pause.data.local.entity.boughtEarly
 import com.astute.pause.testutil.FakeReminderScheduler
 import com.astute.pause.testutil.MutableClock
 import com.astute.pause.testutil.TestDb
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -167,5 +170,13 @@ class PurchaseRepositoryTest {
         assertNull(repo.item(id))
         assertEquals(0, db.answerDao().countForItem(id))
         assertEquals(listOf(id), scheduler.cancelledAll)
+    }
+
+    @Test fun concurrent_bought_taps_record_one_decision_and_one_follow_up() = runBlocking {
+        val id = repo.startItem("Bike", "USD")
+        repo.setCost(id, 500)
+        val results = (1..5).map { async(Dispatchers.Default) { repo.markBought(id, 500) } }.awaitAll()
+        assertEquals(1, results.count { it })
+        assertEquals(1, scheduler.followUpCalls)
     }
 }

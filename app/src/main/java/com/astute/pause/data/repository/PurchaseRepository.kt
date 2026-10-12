@@ -93,39 +93,50 @@ class PurchaseRepository @Inject constructor(
     suspend fun setFlagged(answerId: Long, flagged: Boolean) = answers.setFlagged(answerId, flagged)
 
     suspend fun startWaiting(itemId: Long): Boolean {
-        val item = items.get(itemId) ?: return false
-        val until = item.waitUntil ?: return false
-        if (item.status != ItemStatus.CONSIDERING) return false
-        items.update(item.copy(status = ItemStatus.WAITING))
+        val until = db.withTransaction {
+            val item = items.get(itemId) ?: return@withTransaction null
+            val until = item.waitUntil ?: return@withTransaction null
+            if (item.status != ItemStatus.CONSIDERING) return@withTransaction null
+            items.update(item.copy(status = ItemStatus.WAITING))
+            until
+        } ?: return false
         scheduler.scheduleDecide(itemId, until)
         return true
     }
 
     suspend fun markBought(itemId: Long, finalCents: Long): Boolean {
-        val item = items.get(itemId) ?: return false
-        if (item.status !in OPEN) return false
-        val now = clock.instant()
-        val due = now.plus(FOLLOW_UP_DELAY)
-        items.update(item.copy(status = ItemStatus.BOUGHT, decidedAt = now, finalCostCents = finalCents, followupDueAt = due))
+        val due = db.withTransaction {
+            val item = items.get(itemId) ?: return@withTransaction null
+            if (item.status !in OPEN) return@withTransaction null
+            val now = clock.instant()
+            val due = now.plus(FOLLOW_UP_DELAY)
+            items.update(item.copy(status = ItemStatus.BOUGHT, decidedAt = now, finalCostCents = finalCents, followupDueAt = due))
+            due
+        } ?: return false
         scheduler.cancelDecide(itemId)
         scheduler.scheduleFollowUp(itemId, due)
         return true
     }
 
     suspend fun markSkipped(itemId: Long): Boolean {
-        val item = items.get(itemId) ?: return false
-        if (item.status !in OPEN) return false
-        items.update(item.copy(status = ItemStatus.SKIPPED, decidedAt = clock.instant()))
+        val changed = db.withTransaction {
+            val item = items.get(itemId) ?: return@withTransaction false
+            if (item.status !in OPEN) return@withTransaction false
+            items.update(item.copy(status = ItemStatus.SKIPPED, decidedAt = clock.instant()))
+            true
+        }
+        if (!changed) return false
         scheduler.cancelDecide(itemId)
         return true
     }
 
-    suspend fun answerFollowUp(itemId: Long, remembersIt: Boolean, happyWithIt: Boolean): Boolean {
-        val item = items.get(itemId) ?: return false
-        if (item.status != ItemStatus.BOUGHT || item.followupAnsweredAt != null) return false
-        items.update(item.copy(remembersIt = remembersIt, happyWithIt = happyWithIt, followupAnsweredAt = clock.instant()))
-        return true
-    }
+    suspend fun answerFollowUp(itemId: Long, remembersIt: Boolean, happyWithIt: Boolean): Boolean =
+        db.withTransaction {
+            val item = items.get(itemId) ?: return@withTransaction false
+            if (item.status != ItemStatus.BOUGHT || item.followupAnsweredAt != null) return@withTransaction false
+            items.update(item.copy(remembersIt = remembersIt, happyWithIt = happyWithIt, followupAnsweredAt = clock.instant()))
+            true
+        }
 
     suspend fun deleteItem(itemId: Long) {
         items.delete(itemId)
