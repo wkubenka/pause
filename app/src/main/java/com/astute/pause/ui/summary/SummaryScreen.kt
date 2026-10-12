@@ -130,7 +130,11 @@ fun SummaryScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: SummaryView
             },
             confirmButton = {
                 TextButton(onClick = {
-                    withNotificationPermission { viewModel.markBought(finalCost) { showBoughtDialog = false; onDone() } }
+                    if (Money.parseToCents(finalCost) == null) {
+                        viewModel.markBought(finalCost) {} // invalid: shows the price error, no permission prompt
+                    } else {
+                        withNotificationPermission { viewModel.markBought(finalCost) { showBoughtDialog = false; onDone() } }
+                    }
                 }) { Text("Save") }
             },
             dismissButton = { TextButton(onClick = { showBoughtDialog = false }) { Text("Cancel") } },
