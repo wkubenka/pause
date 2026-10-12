@@ -52,4 +52,34 @@ class FollowUpViewModelTest {
         val vm = FollowUpViewModel(SavedStateHandle(mapOf("itemId" to id)), repo)
         assertTrue(vm.state.awaitFirst { it.item != null }.alreadyAnswered)
     }
+
+    @Test fun missing_item_is_loaded_and_missing_and_cannot_submit() = runBlocking<Unit> {
+        val vm = FollowUpViewModel(SavedStateHandle(mapOf("itemId" to 9_999L)), repo)
+        val s = vm.state.awaitFirst { it.loaded }
+        assertTrue(s.missing)
+        vm.setRemembers(true); vm.setHappy(true)
+        assertFalse(vm.state.value.canSubmit)
+    }
+
+    @Test fun answered_item_cannot_submit() = runBlocking<Unit> {
+        val id = bought().also { repo.answerFollowUp(it, remembersIt = false, happyWithIt = true) }
+        val vm = FollowUpViewModel(SavedStateHandle(mapOf("itemId" to id)), repo)
+        vm.state.awaitFirst { it.item != null }
+        vm.setRemembers(true); vm.setHappy(true)
+        assertFalse(vm.state.value.canSubmit)
+    }
+
+    @Test fun double_submit_calls_onDone_once() = runBlocking<Unit> {
+        val id = bought()
+        val vm = FollowUpViewModel(SavedStateHandle(mapOf("itemId" to id)), repo)
+        vm.state.awaitFirst { it.item != null }
+        vm.setRemembers(true); vm.setHappy(true)
+        var calls = 0
+        val done = CompletableDeferred<Unit>()
+        vm.submit { calls++; done.complete(Unit) }
+        vm.submit { calls++; done.complete(Unit) }
+        done.await()
+        kotlinx.coroutines.delay(100)
+        assertEquals(1, calls)
+    }
 }

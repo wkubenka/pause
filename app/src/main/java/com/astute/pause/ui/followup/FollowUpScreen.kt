@@ -35,6 +35,12 @@ fun FollowUpScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: FollowUpVi
         },
     ) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            if (!state.loaded) return@Column
+            if (state.missing) {
+                Text("This item is no longer here.")
+                Button(onClick = onDone) { Text("Done") }
+                return@Column
+            }
             if (state.alreadyAnswered) {
                 Text("You've already looked back on this one. Thanks!")
                 Button(onClick = onDone) { Text("Done") }

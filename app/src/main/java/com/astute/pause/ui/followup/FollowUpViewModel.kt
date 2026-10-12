@@ -14,8 +14,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class FollowUpState(val item: Item? = null, val remembers: Boolean? = null, val happy: Boolean? = null) {
-    val canSubmit: Boolean get() = remembers != null && happy != null && !alreadyAnswered
+data class FollowUpState(val item: Item? = null, val remembers: Boolean? = null, val happy: Boolean? = null, val loaded: Boolean = false) {
+    val missing: Boolean get() = loaded && item == null
+    val canSubmit: Boolean get() = item != null && remembers != null && happy != null && !alreadyAnswered
     val alreadyAnswered: Boolean get() = item?.followupAnsweredAt != null
 }
 
@@ -30,7 +31,7 @@ class FollowUpViewModel @Inject constructor(
     private var submitting = false
 
     val state: StateFlow<FollowUpState> = combine(repo.observeItem(itemId), remembers, happy) { item, r, h ->
-        FollowUpState(item, r, h)
+        FollowUpState(item, r, h, loaded = true)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, FollowUpState())
 
     fun setRemembers(value: Boolean) { remembers.value = value }
