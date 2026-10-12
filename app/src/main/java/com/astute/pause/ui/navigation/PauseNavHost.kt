@@ -5,6 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.astute.pause.reminders.DeepLinkTarget
+import com.astute.pause.ui.cost.CostScreen
 import com.astute.pause.ui.home.HomeScreen
 
 @Composable
@@ -14,7 +15,7 @@ fun PauseNavHost(deepLink: DeepLinkTarget?, onDeepLinkHandled: () -> Unit) {
     NavHost(navController = navController, startDestination = HomeRoute) {
         composable<HomeRoute> {
             HomeScreen(
-                onItemCreated = {},
+                onItemCreated = { id -> navController.navigate(CostRoute(id)) },
                 onResume = {},
                 onRecheck = {},
                 onFollowUp = {},
@@ -22,6 +23,9 @@ fun PauseNavHost(deepLink: DeepLinkTarget?, onDeepLinkHandled: () -> Unit) {
                 onHistory = {},
                 onSettings = {},
             )
+        }
+        composable<CostRoute> {
+            CostScreen(onBack = { navController.popBackStack() }, onContinue = {})
         }
     }
 }
