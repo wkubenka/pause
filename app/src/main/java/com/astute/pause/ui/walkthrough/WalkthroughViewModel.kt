@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import javax.inject.Inject
 
 data class WalkthroughState(
@@ -34,6 +37,7 @@ data class WalkthroughState(
 class WalkthroughViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repo: PurchaseRepository,
+    private val clock: Clock,
 ) : ViewModel() {
     private val itemId: Long = checkNotNull(savedStateHandle["itemId"])
     private val phase = if (savedStateHandle.get<Boolean>("recheck") == true) AnswerPhase.RECHECK else AnswerPhase.INITIAL
@@ -41,6 +45,9 @@ class WalkthroughViewModel @Inject constructor(
 
     /** Main-thread confined; ignores next() while a save is in flight so one tap advances one question. */
     private var saving = false
+
+    /** When next() last moved to a new question; taps within ADVANCE_COOLDOWN of it are ignored. Cleared by back(). */
+    private var advancedAt: Instant? = null
 
     private val _state = MutableStateFlow(WalkthroughState())
     val state: StateFlow<WalkthroughState> = _state.asStateFlow()
@@ -70,13 +77,14 @@ class WalkthroughViewModel @Inject constructor(
         val s = _state.value
         val q = s.current ?: return
         if (!s.canContinue || saving) return
+        advancedAt?.let { if (clock.instant().isBefore(it.plus(ADVANCE_COOLDOWN))) return }
         saving = true
         viewModelScope.launch {
             try {
                 repo.saveAnswer(itemId, q, s.answer, s.note, phase)
                 val nextIndex = s.index + 1
                 _state.value = if (nextIndex >= s.questions.size) s.copy(finished = true)
-                else s.copy(index = nextIndex).withDraft()
+                else s.copy(index = nextIndex).withDraft().also { advancedAt = clock.instant() }
             } finally {
                 saving = false
             }
@@ -86,6 +94,7 @@ class WalkthroughViewModel @Inject constructor(
     fun back(): Boolean {
         val s = _state.value
         if (s.index == 0) return false
+        advancedAt = null
         _state.value = s.copy(index = s.index - 1).withDraft()
         return true
     }
@@ -100,5 +109,9 @@ class WalkthroughViewModel @Inject constructor(
         val q = current ?: return this
         val (answer, note) = drafts[q.id] ?: ("" to "")
         return copy(answer = answer, note = note)
+    }
+
+    private companion object {
+        val ADVANCE_COOLDOWN: Duration = Duration.ofMillis(500)
     }
 }

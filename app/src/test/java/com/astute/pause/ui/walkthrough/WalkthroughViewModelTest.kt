@@ -11,6 +11,7 @@ import com.astute.pause.testutil.MutableClock
 import com.astute.pause.testutil.TestDb
 import com.astute.pause.testutil.awaitFirst
 import kotlinx.coroutines.runBlocking
+import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -26,14 +27,18 @@ class WalkthroughViewModelTest {
     @get:Rule val main = MainDispatcherRule()
     private lateinit var db: PauseDatabase
     private lateinit var repo: PurchaseRepository
+    private val clock = MutableClock()
 
-    @Before fun setUp() { db = TestDb.create(); repo = PurchaseRepository(db, FakeReminderScheduler(), MutableClock()) }
+    @Before fun setUp() { db = TestDb.create(); repo = PurchaseRepository(db, FakeReminderScheduler(), clock) }
     @After fun tearDown() { db.close() }
+
+    /** Lets a rejected (or wrongly accepted) next() finish its Room write before asserting nothing happened. */
+    private fun settle() = Thread.sleep(300)
 
     private suspend fun item(cents: Long): Long = repo.startItem("Thing", "USD").also { repo.setCost(it, cents) }
 
     private suspend fun vm(id: Long, recheck: Boolean = false) =
-        WalkthroughViewModel(SavedStateHandle(mapOf("itemId" to id, "recheck" to recheck)), repo)
+        WalkthroughViewModel(SavedStateHandle(mapOf("itemId" to id, "recheck" to recheck)), repo, clock)
             .also { v -> v.state.awaitFirst { !it.loading } }
 
     @Test fun small_item_walks_three_questions_then_finishes() = runBlocking<Unit> {
@@ -42,9 +47,9 @@ class WalkthroughViewModelTest {
         assertEquals(3, vm.state.value.questions.size)
         vm.setAnswer("I need it"); vm.next()
         vm.state.awaitFirst { it.index == 1 }
-        vm.setAnswer("no"); vm.next()
+        clock.advance(Duration.ofSeconds(1)); vm.setAnswer("no"); vm.next()
         vm.state.awaitFirst { it.index == 2 }
-        vm.setAnswer("yes"); vm.setNote("budgeted"); vm.next()
+        clock.advance(Duration.ofSeconds(1)); vm.setAnswer("yes"); vm.setNote("budgeted"); vm.next()
         vm.state.awaitFirst { it.finished }
         val saved = repo.answersFor(id, AnswerPhase.INITIAL)
         assertEquals(listOf("I need it", "no", "yes"), saved.map { it.answer })
@@ -78,8 +83,8 @@ class WalkthroughViewModelTest {
         val id = item(1_000)
         val first = vm(id)
         first.setAnswer("I need it"); first.next(); first.state.awaitFirst { it.index == 1 }
-        first.setAnswer("no"); first.next(); first.state.awaitFirst { it.index == 2 }
-        first.setAnswer("yes"); first.next(); first.state.awaitFirst { it.finished }
+        clock.advance(Duration.ofSeconds(1)); first.setAnswer("no"); first.next(); first.state.awaitFirst { it.index == 2 }
+        clock.advance(Duration.ofSeconds(1)); first.setAnswer("yes"); first.next(); first.state.awaitFirst { it.finished }
 
         val reopened = vm(id)
         assertEquals(2, reopened.state.value.index)
@@ -94,6 +99,7 @@ class WalkthroughViewModelTest {
         vm.state.awaitFirst { it.index == 1 }
         vm.setAnswer("yes")
         vm.back()
+        clock.advance(Duration.ofSeconds(1))
         vm.next()
         vm.state.awaitFirst { it.index == 1 }
         assertEquals("yes", vm.state.value.answer)
@@ -123,5 +129,31 @@ class WalkthroughViewModelTest {
         vm.state.awaitFirst { it.index == 1 }
         assertEquals(1, vm.state.value.index)
         assertEquals(1, repo.answersFor(id, AnswerPhase.INITIAL).size)
+    }
+
+    @Test fun next_right_after_advancing_to_free_text_is_ignored() = runBlocking<Unit> {
+        val id = item(50_000)
+        val vm = vm(id)
+        vm.setAnswer("I need it"); vm.next()
+        vm.state.awaitFirst { it.index == 1 }             // Q2 is free text, blank allowed
+        settle()                                          // let the in-flight guard clear; only the cooldown remains
+        vm.next()                                         // clock not advanced
+        settle()
+        assertEquals(1, vm.state.value.index)
+        assertEquals(1, repo.answersFor(id, AnswerPhase.INITIAL).size)
+    }
+
+    @Test fun next_at_exactly_500ms_after_advancing_is_accepted() = runBlocking<Unit> {
+        val id = item(50_000)
+        val vm = vm(id)
+        vm.setAnswer("I need it"); vm.next()
+        vm.state.awaitFirst { it.index == 1 }
+        settle()
+        clock.advance(Duration.ofMillis(499)); vm.next()
+        settle()
+        assertEquals(1, vm.state.value.index)
+        clock.advance(Duration.ofMillis(1)); vm.setAnswer("no"); vm.next()
+        vm.state.awaitFirst { it.index == 2 }
+        assertEquals(2, repo.answersFor(id, AnswerPhase.INITIAL).size)
     }
 }
