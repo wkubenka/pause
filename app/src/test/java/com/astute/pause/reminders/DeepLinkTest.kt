@@ -19,4 +19,10 @@ class DeepLinkTest {
         assertNull(DeepLink.parse(Intent()))
         assertNull(DeepLink.parse(Intent().putExtra(DeepLink.EXTRA_ITEM_ID, 3L).putExtra(DeepLink.EXTRA_TARGET, "bogus")))
     }
+
+    @Test fun ignores_intents_replayed_from_history() {
+        val intent = Intent().putExtra(DeepLink.EXTRA_ITEM_ID, 3L).putExtra(DeepLink.EXTRA_TARGET, DeepLink.TARGET_RECHECK)
+            .addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+        assertNull(DeepLink.parse(intent))
+    }
 }

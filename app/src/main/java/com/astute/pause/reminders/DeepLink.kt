@@ -15,6 +15,8 @@ object DeepLink {
 
     fun parse(intent: Intent?): DeepLinkTarget? {
         if (intent == null) return null
+        // Reopening from Recents (API 26-30) replays the original intent; that is not a fresh tap.
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return null
         val itemId = intent.getLongExtra(EXTRA_ITEM_ID, -1L).takeIf { it > 0 } ?: return null
         return when (intent.getStringExtra(EXTRA_TARGET)) {
             TARGET_RECHECK -> DeepLinkTarget.Recheck(itemId)
