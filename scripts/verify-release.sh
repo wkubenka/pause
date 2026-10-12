@@ -20,10 +20,11 @@ test -f "$APK" || { echo "missing $APK"; exit 1; }
 "$BUILD_TOOLS/apksigner" verify "$APK"
 BADGING=$("$BUILD_TOOLS/aapt2" dump badging "$APK" | sed -n 1p)
 echo "$BADGING"
-echo "$BADGING" | grep -q "name='com.astute.pause'"
-echo "$BADGING" | grep -q "versionCode='10203'"
-echo "$BADGING" | grep -q "versionName='1.2.3'"
-if "$BUILD_TOOLS/aapt2" dump permissions "$APK" | grep -q 'android.permission.INTERNET'; then
+grep -q "name='com.astute.pause'" <<<"$BADGING"
+grep -q "versionCode='10203'" <<<"$BADGING"
+grep -q "versionName='1.2.3'" <<<"$BADGING"
+PERMS=$("$BUILD_TOOLS/aapt2" dump permissions "$APK")
+if grep -q 'android.permission.INTERNET' <<<"$PERMS"; then
   echo "INTERNET permission must not be present"; exit 1
 fi
 echo "OK: release APK is Astute Repo compatible"
