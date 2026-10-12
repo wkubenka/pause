@@ -11,3 +11,6 @@ local.properties
 .cxx
 *.jks
 .claude/settings.local.json
+
+# Release signing (back these up outside the repo)
+astute-pause-release.txt
