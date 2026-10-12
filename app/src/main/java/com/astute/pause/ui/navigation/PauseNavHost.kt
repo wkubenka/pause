@@ -9,6 +9,7 @@ import com.astute.pause.reminders.DeepLinkTarget
 import com.astute.pause.ui.cost.CostScreen
 import com.astute.pause.ui.home.HomeScreen
 import com.astute.pause.ui.summary.SummaryScreen
+import com.astute.pause.ui.waiting.WaitingScreen
 import com.astute.pause.ui.walkthrough.WalkthroughScreen
 
 @Composable
@@ -22,7 +23,7 @@ fun PauseNavHost(deepLink: DeepLinkTarget?, onDeepLinkHandled: () -> Unit) {
                 onResume = { item -> navController.navigate(if (item.costCents == null) CostRoute(item.id) else WalkthroughRoute(item.id)) },
                 onRecheck = { id -> navController.navigate(WalkthroughRoute(id, recheck = true)) },
                 onFollowUp = {},
-                onSeeAllWaiting = {},
+                onSeeAllWaiting = { navController.navigate(WaitingRoute) },
                 onHistory = {},
                 onSettings = {},
             )
@@ -44,6 +45,12 @@ fun PauseNavHost(deepLink: DeepLinkTarget?, onDeepLinkHandled: () -> Unit) {
                         popUpTo<WalkthroughRoute> { inclusive = true }
                     }
                 },
+            )
+        }
+        composable<WaitingRoute> {
+            WaitingScreen(
+                onBack = { navController.popBackStack() },
+                onRecheck = { id -> navController.navigate(WalkthroughRoute(id, recheck = true)) },
             )
         }
         composable<SummaryRoute> {
