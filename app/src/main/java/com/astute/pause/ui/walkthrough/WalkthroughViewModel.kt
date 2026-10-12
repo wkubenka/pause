@@ -54,7 +54,8 @@ class WalkthroughViewModel @Inject constructor(
             }
             val questions = repo.questionsFor(itemId, phase)
             repo.answersFor(itemId, phase).forEach { drafts[it.questionId] = it.answer to it.note }
-            val start = questions.indexOfFirst { it.id !in drafts }.takeIf { it >= 0 } ?: 0
+            val start = questions.indexOfFirst { it.id !in drafts }.takeIf { it >= 0 }
+                ?: questions.lastIndex.coerceAtLeast(0) // all answered: land on the last one so "See summary" is one tap
             _state.value = WalkthroughState(
                 loading = false, itemName = item.name, questions = questions, index = start,
                 finished = questions.isEmpty(),

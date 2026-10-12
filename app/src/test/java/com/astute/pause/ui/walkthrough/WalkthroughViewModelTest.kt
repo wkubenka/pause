@@ -74,6 +74,20 @@ class WalkthroughViewModelTest {
         assertFalse(reopened.back())
     }
 
+    @Test fun fully_answered_item_reopens_at_last_question_with_answer_restored() = runBlocking<Unit> {
+        val id = item(1_000)
+        val first = vm(id)
+        first.setAnswer("I need it"); first.next(); first.state.awaitFirst { it.index == 1 }
+        first.setAnswer("no"); first.next(); first.state.awaitFirst { it.index == 2 }
+        first.setAnswer("yes"); first.next(); first.state.awaitFirst { it.finished }
+
+        val reopened = vm(id)
+        assertEquals(2, reopened.state.value.index)
+        assertEquals("yes", reopened.state.value.answer)
+        assertTrue(reopened.back())
+        assertEquals("no", reopened.state.value.answer)
+    }
+
     @Test fun back_keeps_unsaved_draft_when_returning() = runBlocking<Unit> {
         val vm = vm(item(1_000))
         vm.setAnswer("I need it"); vm.next()
