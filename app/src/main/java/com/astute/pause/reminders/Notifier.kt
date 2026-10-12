@@ -28,6 +28,8 @@ sealed interface PauseNotification {
 
 interface Notifier {
     fun show(notification: PauseNotification)
+    /** Removes any delivered Decide, Nudge and FollowUp notifications for the item. */
+    fun cancel(itemId: Long)
 }
 
 @Singleton
@@ -55,7 +57,7 @@ class AndroidNotifier @Inject constructor(
                 "Two quick questions about something you bought 90 days ago.", DeepLink.TARGET_FOLLOWUP, 2,
             )
         }
-        val requestCode = (notification.itemId * 3 + slot).toInt()
+        val requestCode = requestCode(notification.itemId, slot)
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(DeepLink.EXTRA_ITEM_ID, notification.itemId)
@@ -73,6 +75,13 @@ class AndroidNotifier @Inject constructor(
             .build()
         NotificationManagerCompat.from(context).notify(requestCode, built)
     }
+
+    override fun cancel(itemId: Long) {
+        val manager = NotificationManagerCompat.from(context)
+        for (slot in 0..2) manager.cancel(requestCode(itemId, slot))
+    }
+
+    private fun requestCode(itemId: Long, slot: Int) = (itemId * 3 + slot).toInt()
 
     private data class Spec(val channel: String, val title: String, val text: String, val target: String, val slot: Int)
 

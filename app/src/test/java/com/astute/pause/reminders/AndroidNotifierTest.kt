@@ -34,6 +34,22 @@ class AndroidNotifierTest {
         assertEquals(DeepLinkTarget.FollowUp(5), DeepLink.parse(intent))
     }
 
+    @Test fun cancel_removes_delivered_notifications_for_the_item_only() {
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        val notifier = AndroidNotifier(app)
+        notifier.show(PauseNotification.Decide(42, "standing desk"))
+        notifier.show(PauseNotification.Nudge(42, "standing desk"))
+        notifier.show(PauseNotification.FollowUp(42, "standing desk"))
+        notifier.show(PauseNotification.Decide(43, "lamp"))
+        val manager = app.getSystemService(NotificationManager::class.java)
+        assertEquals(4, shadowOf(manager).allNotifications.size)
+
+        notifier.cancel(42)
+
+        val left = shadowOf(manager).allNotifications.single()
+        assertEquals("Still want the lamp?", left.extras.getString(Notification.EXTRA_TITLE))
+    }
+
     @Test fun nothing_is_posted_without_permission() {
         shadowOf(app).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
         AndroidNotifier(app).show(PauseNotification.Nudge(1, "x"))

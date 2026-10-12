@@ -15,6 +15,7 @@ import javax.inject.Singleton
 class WorkManagerReminderScheduler @Inject constructor(
     private val workManager: WorkManager,
     private val clock: Clock,
+    private val notifier: Notifier,
 ) : ReminderScheduler {
 
     override fun scheduleDecide(itemId: Long, at: Instant) = enqueue(ReminderWorker.KIND_DECIDE, itemId, at)
@@ -24,6 +25,7 @@ class WorkManagerReminderScheduler @Inject constructor(
     override fun cancelDecide(itemId: Long) {
         workManager.cancelUniqueWork(workName(ReminderWorker.KIND_DECIDE, itemId))
         workManager.cancelUniqueWork(workName(ReminderWorker.KIND_NUDGE, itemId))
+        notifier.cancel(itemId)
     }
 
     override fun cancelAll(itemId: Long) {

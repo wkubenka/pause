@@ -7,6 +7,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
+import com.astute.pause.testutil.FakeNotifier
 import com.astute.pause.testutil.MutableClock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,6 +22,7 @@ class WorkManagerReminderSchedulerTest {
     private lateinit var workManager: WorkManager
     private lateinit var scheduler: WorkManagerReminderScheduler
     private val clock = MutableClock()
+    private val notifier = FakeNotifier()
 
     @Before fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -28,7 +30,7 @@ class WorkManagerReminderSchedulerTest {
             context, Configuration.Builder().setExecutor(SynchronousExecutor()).build()
         )
         workManager = WorkManager.getInstance(context)
-        scheduler = WorkManagerReminderScheduler(workManager, clock)
+        scheduler = WorkManagerReminderScheduler(workManager, clock, notifier)
     }
 
     private fun enqueued(kind: String, id: Long) =
@@ -61,5 +63,11 @@ class WorkManagerReminderSchedulerTest {
         assertEquals(1, enqueued(ReminderWorker.KIND_FOLLOWUP, 9).size)
         scheduler.cancelAll(9)
         assertTrue(enqueued(ReminderWorker.KIND_FOLLOWUP, 9).isEmpty())
+    }
+
+    @Test fun cancelling_also_clears_delivered_notifications() {
+        scheduler.cancelDecide(9)
+        scheduler.cancelAll(10)
+        assertEquals(listOf(9L, 10L), notifier.cancelled)
     }
 }
