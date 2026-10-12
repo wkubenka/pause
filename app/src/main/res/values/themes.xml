@@ -1,3 +1,5 @@
 <resources>
-    <style name="Theme.Pause" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Pause" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFFFFBFE</item>
+    </style>
 </resources>
