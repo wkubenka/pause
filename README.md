@@ -28,6 +28,8 @@ Pause is distributed through [Astute Repo](https://github.com/wkubenka/astute-ap
 
 CI runs tests, builds a release APK signed with the repo's keystore secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`), sets versionName `1.2.3` / versionCode `10203`, and attaches the APK to a GitHub Release. Astute Repo picks it up automatically. Always sign with the same keystore, or installed copies can't update. Check locally with `./scripts/verify-release.sh`.
 
+Keep a backup of the release keystore and its passwords outside this repo — if it is lost, installed copies can never update again.
+
 ## Credits
 
 Default questions are from *The Smart Spending Checklist* by Sunny Kind Journey, used for personal use.
