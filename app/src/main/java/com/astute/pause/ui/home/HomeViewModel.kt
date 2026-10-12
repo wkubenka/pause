@@ -39,9 +39,19 @@ class HomeViewModel @Inject constructor(
     ) { inProgress, waiting, followUps -> HomeState(inProgress, waiting, followUps) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeState())
 
+    /** Main-thread confined; blocks a second creation while one is in flight. */
+    private var creating = false
+
     fun start(name: String, onCreated: (Long) -> Unit) {
-        if (name.isBlank()) return
-        viewModelScope.launch { onCreated(repo.startItem(name)) }
+        if (name.isBlank() || creating) return
+        creating = true
+        viewModelScope.launch {
+            try {
+                onCreated(repo.startItem(name))
+            } finally {
+                creating = false
+            }
+        }
     }
 
     fun discard(itemId: Long) {

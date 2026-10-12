@@ -9,6 +9,7 @@ import com.astute.pause.testutil.MutableClock
 import com.astute.pause.testutil.TestDb
 import com.astute.pause.testutil.awaitFirst
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -58,5 +59,17 @@ class HomeViewModelTest {
         vm.state.awaitFirst { it.inProgress.isNotEmpty() }
         vm.discard(id)
         vm.state.awaitFirst { it.inProgress.isEmpty() }
+    }
+
+    @Test fun double_tap_creates_one_item() = runBlocking<Unit> {
+        val vm = HomeViewModel(repo, FixedTicker(clock.now), clock)
+        val created = java.util.concurrent.CopyOnWriteArrayList<Long>()
+        val first = CompletableDeferred<Long>()
+        vm.start("Desk") { created.add(it); first.complete(it) }
+        vm.start("Desk") { created.add(it) }
+        first.await()
+        val items = repo.observeInProgress().first()
+        assertEquals(1, items.count { it.name == "Desk" })
+        assertEquals(1, created.size)
     }
 }
