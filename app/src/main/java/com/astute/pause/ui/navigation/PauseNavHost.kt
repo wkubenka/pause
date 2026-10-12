@@ -9,6 +9,8 @@ import androidx.navigation.toRoute
 import com.astute.pause.reminders.DeepLinkTarget
 import com.astute.pause.ui.cost.CostScreen
 import com.astute.pause.ui.followup.FollowUpScreen
+import com.astute.pause.ui.history.HistoryDetailScreen
+import com.astute.pause.ui.history.HistoryScreen
 import com.astute.pause.ui.home.HomeScreen
 import com.astute.pause.ui.summary.SummaryScreen
 import com.astute.pause.ui.waiting.WaitingScreen
@@ -34,7 +36,7 @@ fun PauseNavHost(deepLink: DeepLinkTarget?, onDeepLinkHandled: () -> Unit) {
                 onRecheck = { id -> navController.navigate(WalkthroughRoute(id, recheck = true)) },
                 onFollowUp = { id -> navController.navigate(FollowUpRoute(id)) },
                 onSeeAllWaiting = { navController.navigate(WaitingRoute) },
-                onHistory = {},
+                onHistory = { navController.navigate(HistoryRoute) },
                 onSettings = {},
             )
         }
@@ -74,6 +76,15 @@ fun PauseNavHost(deepLink: DeepLinkTarget?, onDeepLinkHandled: () -> Unit) {
                 onBack = { navController.popBackStack() },
                 onDone = { navController.popBackStack(HomeRoute, inclusive = false) },
             )
+        }
+        composable<HistoryRoute> {
+            HistoryScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { id -> navController.navigate(HistoryDetailRoute(id)) },
+            )
+        }
+        composable<HistoryDetailRoute> {
+            HistoryDetailScreen(onBack = { navController.popBackStack() })
         }
     }
 }
