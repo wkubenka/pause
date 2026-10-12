@@ -23,6 +23,10 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -61,9 +65,31 @@ fun HomeScreen(
     var name by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
+    val snackbar = remember { SnackbarHostState() }
+    val pendingDiscard by viewModel.pendingDiscard.collectAsStateWithLifecycle()
+    pendingDiscard?.let { discarded ->
+        LaunchedEffect(discarded.id) {
+            var undone = false
+            try {
+                val result = snackbar.showSnackbar(
+                    message = "Discarded ${discarded.name}",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Short,
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    undone = true
+                    viewModel.undoDiscard(discarded.id)
+                }
+            } finally {
+                // Dismissed, timed out, replaced, or left the screen: only Undo keeps the item.
+                if (!undone) viewModel.commitDiscard(discarded.id)
+            }
+        }
+    }
     val submit = { viewModel.start(name) { id -> name = ""; onItemCreated(id) } }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text("Pause") },
@@ -116,7 +142,7 @@ fun HomeScreen(
                         headlineContent = { Text(item.name) },
                         supportingContent = { Text(if (item.costCents == null) "Add a price" else "Pick up where you left off") },
                         trailingContent = {
-                            IconButton(onClick = { viewModel.discard(item.id) }) {
+                            IconButton(onClick = { viewModel.discard(item) }) {
                                 Icon(Icons.Filled.Close, contentDescription = "Discard ${item.name}")
                             }
                         },

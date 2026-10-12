@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -53,12 +55,62 @@ class HomeViewModelTest {
         assertEquals("Desk", repo.item(created.await())!!.name)
     }
 
-    @Test fun discard_deletes_item() = runBlocking<Unit> {
+    private suspend fun homeWithItem(): Triple<HomeViewModel, Long, com.astute.pause.data.local.entity.Item> {
         val id = repo.startItem("Lamp", "USD")
         val vm = HomeViewModel(repo, FixedTicker(clock.now), clock)
         vm.state.awaitFirst { it.inProgress.isNotEmpty() }
-        vm.discard(id)
+        return Triple(vm, id, repo.item(id)!!)
+    }
+
+    @Test fun discard_hides_item_but_keeps_row() = runBlocking<Unit> {
+        val (vm, id, item) = homeWithItem()
+        vm.discard(item)
         vm.state.awaitFirst { it.inProgress.isEmpty() }
+        assertEquals(id, vm.pendingDiscard.value!!.id)
+        assertNotNull(repo.item(id))
+    }
+
+    @Test fun undo_restores_item() = runBlocking<Unit> {
+        val (vm, id, item) = homeWithItem()
+        vm.discard(item)
+        vm.state.awaitFirst { it.inProgress.isEmpty() }
+        vm.undoDiscard(id)
+        vm.state.awaitFirst { it.inProgress.map { i -> i.id } == listOf(id) }
+        assertNotNull(repo.item(id))
+        assertNull(vm.pendingDiscard.value)
+    }
+
+    @Test fun commit_deletes_item() = runBlocking<Unit> {
+        val (vm, id, item) = homeWithItem()
+        vm.discard(item)
+        vm.commitDiscard(id)
+        awaitDeleted(id)
+        vm.state.awaitFirst { it.inProgress.isEmpty() }
+    }
+
+    @Test fun repeated_commit_and_undo_are_safe() = runBlocking<Unit> {
+        val (vm, id, item) = homeWithItem()
+        vm.discard(item)
+        vm.commitDiscard(id)
+        vm.commitDiscard(id)
+        vm.undoDiscard(id)
+        awaitDeleted(id)
+        vm.commitDiscard(id)
+        vm.undoDiscard(id)
+        assertNull(repo.item(id))
+        vm.state.awaitFirst { it.inProgress.isEmpty() }
+
+        val other = repo.startItem("Desk", "USD")
+        vm.discard(repo.item(other)!!)
+        vm.undoDiscard(other)
+        vm.commitDiscard(other)
+        vm.state.awaitFirst { it.inProgress.map { i -> i.id } == listOf(other) }
+        assertNotNull(repo.item(other))
+    }
+
+    private suspend fun awaitDeleted(id: Long) {
+        repeat(200) { if (repo.item(id) == null) return; kotlinx.coroutines.delay(10) }
+        assertNull(repo.item(id))
     }
 
     @Test fun double_tap_creates_one_item() = runBlocking<Unit> {
