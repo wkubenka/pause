@@ -12,6 +12,8 @@ import com.astute.pause.ui.followup.FollowUpScreen
 import com.astute.pause.ui.history.HistoryDetailScreen
 import com.astute.pause.ui.history.HistoryScreen
 import com.astute.pause.ui.home.HomeScreen
+import com.astute.pause.ui.settings.SettingsScreen
+import com.astute.pause.ui.settings.TierEditScreen
 import com.astute.pause.ui.summary.SummaryScreen
 import com.astute.pause.ui.waiting.WaitingScreen
 import com.astute.pause.ui.walkthrough.WalkthroughScreen
@@ -37,8 +39,18 @@ fun PauseNavHost(deepLink: DeepLinkTarget?, onDeepLinkHandled: () -> Unit) {
                 onFollowUp = { id -> navController.navigate(FollowUpRoute(id)) },
                 onSeeAllWaiting = { navController.navigate(WaitingRoute) },
                 onHistory = { navController.navigate(HistoryRoute) },
-                onSettings = {},
+                onSettings = { navController.navigate(SettingsRoute) },
             )
+        }
+        composable<SettingsRoute> {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onEditTier = { id -> navController.navigate(TierEditRoute(id)) },
+                onQuestions = {},
+            )
+        }
+        composable<TierEditRoute> {
+            TierEditScreen(onDone = { navController.popBackStack() })
         }
         composable<CostRoute> { entry ->
             val itemId = entry.toRoute<CostRoute>().itemId
