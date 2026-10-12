@@ -27,4 +27,11 @@ PERMS=$("$BUILD_TOOLS/aapt2" dump permissions "$APK")
 if grep -q 'android.permission.INTERNET' <<<"$PERMS"; then
   echo "INTERNET permission must not be present"; exit 1
 fi
+MANIFEST=$("$BUILD_TOOLS/aapt2" dump xmltree --file AndroidManifest.xml "$APK")
+if ! grep -q 'allowBackup.*=false' <<<"$MANIFEST"; then
+  echo "allowBackup must be false (purchase data stays off Google)"; exit 1
+fi
+if ! grep -q 'dataExtractionRules' <<<"$MANIFEST"; then
+  echo "dataExtractionRules must be set (excludes Android 12+ cloud backup and device transfer)"; exit 1
+fi
 echo "OK: release APK is Astute Repo compatible"

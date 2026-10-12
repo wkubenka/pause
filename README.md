@@ -1,6 +1,6 @@
 # Pause
 
-A personal Android app that walks you through a smart-spending checklist before non-essential purchases, with scrutiny scaled to the price. Local-only: no accounts, no network.
+A personal Android app that walks you through a smart-spending checklist before non-essential purchases, with scrutiny scaled to the price. Local-only: no accounts, no network, and Android backup is disabled so nothing leaves the device.
 
 ## How it works
 

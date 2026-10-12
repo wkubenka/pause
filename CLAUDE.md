@@ -19,5 +19,6 @@ Tests are JVM-only (JUnit 4 + Robolectric, SDK 34 via `src/test/resources/robole
 - The app never recommends Buy/Wait/Skip. Keep copy gentle.
 - Room schema is exported to `app/schemas/`. Any entity change needs a version bump + Migration. Never use destructive migration.
 - No INTERNET permission. Do not add network libraries.
+- Android backup is off (`allowBackup="false"` + `res/xml/data_extraction_rules.xml`). Purchase data must stay off Google; don't re-enable it.
 - Inject `java.time.Clock` for anything time-based. Don't call `Instant.now()` directly.
 - java.time APIs must exist on API 26 (no `Duration.isPositive`, `toHoursPart`, and so on).

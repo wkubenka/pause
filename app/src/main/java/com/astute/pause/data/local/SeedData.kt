@@ -17,8 +17,8 @@ import com.astute.pause.data.local.entity.Tier
 import com.astute.pause.data.local.entity.TierMode
 
 /**
- * Default questions: "The Smart Spending Checklist" by Sunny Kind Journey, used for personal use only.
- * If this app is ever shared or published, replace the text with original questions or get permission.
+ * Default question text is quoted verbatim from "The Smart Spending Checklist" by Sunny Kind Journey.
+ * All credit for the questions belongs to Sunny Kind Journey; used here for personal use.
  */
 object SeedData {
     const val YES = "yes"
