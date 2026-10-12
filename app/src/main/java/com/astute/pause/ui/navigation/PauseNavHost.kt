@@ -8,6 +8,7 @@ import androidx.navigation.toRoute
 import com.astute.pause.reminders.DeepLinkTarget
 import com.astute.pause.ui.cost.CostScreen
 import com.astute.pause.ui.home.HomeScreen
+import com.astute.pause.ui.summary.SummaryScreen
 import com.astute.pause.ui.walkthrough.WalkthroughScreen
 
 @Composable
@@ -38,7 +39,17 @@ fun PauseNavHost(deepLink: DeepLinkTarget?, onDeepLinkHandled: () -> Unit) {
             WalkthroughScreen(
                 recheck = route.recheck,
                 onExit = { navController.popBackStack() },
-                onFinished = {},
+                onFinished = {
+                    navController.navigate(SummaryRoute(route.itemId, route.recheck)) {
+                        popUpTo<WalkthroughRoute> { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable<SummaryRoute> {
+            SummaryScreen(
+                onBack = { navController.popBackStack() },
+                onDone = { navController.popBackStack(HomeRoute, inclusive = false) },
             )
         }
     }
