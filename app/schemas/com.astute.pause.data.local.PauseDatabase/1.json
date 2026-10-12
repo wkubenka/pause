@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "190c2f8fbbceed63fc6ae86819729139",
+    "identityHash": "178fc335c558f93b7bdc236231c0cd39",
     "entities": [
       {
         "tableName": "items",
@@ -175,13 +175,15 @@
         },
         "indices": [
           {
-            "name": "index_answers_itemId",
-            "unique": false,
+            "name": "index_answers_itemId_questionId_phase",
+            "unique": true,
             "columnNames": [
-              "itemId"
+              "itemId",
+              "questionId",
+              "phase"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_answers_itemId` ON `${TABLE_NAME}` (`itemId`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_answers_itemId_questionId_phase` ON `${TABLE_NAME}` (`itemId`, `questionId`, `phase`)"
           }
         ],
         "foreignKeys": [
@@ -315,7 +317,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '190c2f8fbbceed63fc6ae86819729139')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '178fc335c558f93b7bdc236231c0cd39')"
     ]
   }
 }

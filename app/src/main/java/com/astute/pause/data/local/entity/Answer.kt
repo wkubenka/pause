@@ -16,7 +16,7 @@ import java.time.Instant
             onDelete = ForeignKey.CASCADE,
         )
     ],
-    indices = [Index("itemId")],
+    indices = [Index(value = ["itemId", "questionId", "phase"], unique = true)],
 )
 data class Answer(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

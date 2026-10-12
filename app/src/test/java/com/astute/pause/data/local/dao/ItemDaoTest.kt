@@ -77,4 +77,21 @@ class ItemDaoTest {
         assertFalse(base.copy(decidedAt = t0.plusSeconds(50), status = ItemStatus.SKIPPED).boughtEarly)
         assertFalse(base.copy(waitUntil = null, decidedAt = t0).boughtEarly)
     }
+
+    @Test fun answers_are_unique_per_item_question_and_phase() = runBlocking {
+        val id = dao.insert(item("x", ItemStatus.CONSIDERING))
+        fun answer(phase: AnswerPhase) = Answer(
+            itemId = id, questionId = 1, questionText = "Q", answerType = AnswerType.YES_NO,
+            answer = "yes", answeredAt = t0, phase = phase,
+        )
+        db.answerDao().insert(answer(AnswerPhase.INITIAL))
+        try {
+            db.answerDao().insert(answer(AnswerPhase.INITIAL))
+            org.junit.Assert.fail("expected SQLiteConstraintException")
+        } catch (e: android.database.sqlite.SQLiteConstraintException) {
+            // expected
+        }
+        db.answerDao().insert(answer(AnswerPhase.RECHECK))
+        assertEquals(2, db.answerDao().countForItem(id))
+    }
 }
