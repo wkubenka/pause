@@ -120,8 +120,31 @@ class HomeViewModelTest {
         vm.start("Desk") { created.add(it); first.complete(it) }
         vm.start("Desk") { created.add(it) }
         first.await()
+        vm.start("Desk") { created.add(it) }
         val items = repo.observeInProgress().first()
         assertEquals(1, items.count { it.name == "Desk" })
         assertEquals(1, created.size)
+    }
+
+    @Test fun late_second_tap_after_completion_is_ignored() = runBlocking<Unit> {
+        val vm = HomeViewModel(repo, FixedTicker(clock.now), clock)
+        val created = java.util.concurrent.CopyOnWriteArrayList<Long>()
+        val first = CompletableDeferred<Long>()
+        vm.start("Desk") { created.add(it); first.complete(it) }
+        first.await()
+        vm.start("Desk") { created.add(it) }
+        assertEquals(1, created.size)
+        assertEquals(1, repo.observeInProgress().first().count { it.name == "Desk" })
+    }
+
+    @Test fun start_works_again_after_cooldown() = runBlocking<Unit> {
+        val vm = HomeViewModel(repo, FixedTicker(clock.now), clock)
+        val first = CompletableDeferred<Long>()
+        vm.start("Desk") { first.complete(it) }
+        first.await()
+        clock.advance(Duration.ofMillis(500))
+        val second = CompletableDeferred<Long>()
+        vm.start("Chair") { second.complete(it) }
+        assertEquals("Chair", repo.item(second.await())!!.name)
     }
 }

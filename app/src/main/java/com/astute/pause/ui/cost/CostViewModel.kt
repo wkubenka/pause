@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import javax.inject.Inject
 
 data class TierPreview(val tierName: String?, val questionCount: Int, val waitLabel: String, val decideOn: String?)
@@ -49,6 +51,9 @@ class CostViewModel @Inject constructor(
     /** Main-thread confined; ignores a second submit while a save is in flight. */
     private var submitting = false
 
+    /** When a submit last succeeded; a repeat within SUBMIT_COOLDOWN is ignored (a late second tap before navigation lands). */
+    @Volatile private var submittedAt: Instant? = null
+
     init {
         viewModelScope.launch {
             item = repo.item(itemId)
@@ -71,6 +76,7 @@ class CostViewModel @Inject constructor(
 
     fun submit(onDone: () -> Unit) {
         if (submitting) return
+        submittedAt?.let { if (clock.instant().isBefore(it.plus(SUBMIT_COOLDOWN))) return }
         val cents = Money.parseToCents(_state.value.input)
         if (cents == null) {
             _state.update { it.copy(error = "Enter the full price as a number, like 49.99.") }
@@ -80,6 +86,8 @@ class CostViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repo.setCost(itemId, cents, _state.value.notes)
+                submittedAt = clock.instant()
+                submitting = false
                 onDone()
             } finally {
                 submitting = false
@@ -98,5 +106,9 @@ class CostViewModel @Inject constructor(
             waitLabel = Countdown.waitLength(tier?.waitHours ?: 0),
             decideOn = until?.let { Countdown.decideOn(it, clock.zone) },
         )
+    }
+
+    private companion object {
+        val SUBMIT_COOLDOWN: Duration = Duration.ofMillis(500)
     }
 }

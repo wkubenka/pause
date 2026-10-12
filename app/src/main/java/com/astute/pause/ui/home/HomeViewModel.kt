@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import javax.inject.Inject
 
 data class HomeState(
@@ -51,12 +53,19 @@ class HomeViewModel @Inject constructor(
     /** Main-thread confined; blocks a second creation while one is in flight. */
     private var creating = false
 
+    /** When start last succeeded; a repeat within START_COOLDOWN is ignored (a late second tap before navigation lands). */
+    @Volatile private var createdAt: Instant? = null
+
     fun start(name: String, onCreated: (Long) -> Unit) {
         if (name.isBlank() || creating) return
+        createdAt?.let { if (clock.instant().isBefore(it.plus(START_COOLDOWN))) return }
         creating = true
         viewModelScope.launch {
             try {
-                onCreated(repo.startItem(name))
+                val id = repo.startItem(name)
+                createdAt = clock.instant()
+                creating = false
+                onCreated(id)
             } finally {
                 creating = false
             }
@@ -89,5 +98,9 @@ class HomeViewModel @Inject constructor(
 
     private fun clearLatest(itemId: Long) {
         if (_pendingDiscard.value?.id == itemId) _pendingDiscard.value = null
+    }
+
+    private companion object {
+        val START_COOLDOWN: Duration = Duration.ofMillis(500)
     }
 }

@@ -20,6 +20,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.time.Duration
 
 @RunWith(RobolectricTestRunner::class)
 class CostViewModelTest {
@@ -86,8 +87,30 @@ class CostViewModelTest {
         vm.submit { calls++; done.complete(Unit) }
         vm.submit { calls++ }
         done.await()
-        // let any erroneous second continuation run
-        kotlinx.coroutines.delay(200)
+        vm.submit { calls++ }
         assertEquals(1, calls)
+    }
+
+    @Test fun late_second_submit_after_completion_is_ignored() = runBlocking<Unit> {
+        val (vm, _) = vm()
+        vm.setInput("40")
+        var calls = 0
+        val done = CompletableDeferred<Unit>()
+        vm.submit { calls++; done.complete(Unit) }
+        done.await()
+        vm.submit { calls++ }
+        assertEquals(1, calls)
+    }
+
+    @Test fun submit_works_again_after_cooldown() = runBlocking<Unit> {
+        val (vm, _) = vm()
+        vm.setInput("40")
+        val first = CompletableDeferred<Unit>()
+        vm.submit { first.complete(Unit) }
+        first.await()
+        clock.advance(Duration.ofMillis(500))
+        val second = CompletableDeferred<Unit>()
+        vm.submit { second.complete(Unit) }
+        second.await()
     }
 }
