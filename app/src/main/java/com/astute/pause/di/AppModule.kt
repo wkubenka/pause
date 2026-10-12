@@ -10,6 +10,8 @@ import androidx.work.WorkManager
 import com.astute.pause.data.local.PauseDatabase
 import com.astute.pause.data.settings.DataStoreNotificationSettings
 import com.astute.pause.data.settings.NotificationSettings
+import com.astute.pause.domain.ClockTicker
+import com.astute.pause.domain.NowTicker
 import com.astute.pause.reminders.AndroidNotifier
 import com.astute.pause.reminders.Notifier
 import com.astute.pause.reminders.ReminderScheduler
@@ -49,4 +51,5 @@ abstract class BindingsModule {
     @Binds abstract fun reminderScheduler(impl: WorkManagerReminderScheduler): ReminderScheduler
     @Binds abstract fun notifier(impl: AndroidNotifier): Notifier
     @Binds abstract fun notificationSettings(impl: DataStoreNotificationSettings): NotificationSettings
+    @Binds abstract fun nowTicker(impl: ClockTicker): NowTicker
 }
