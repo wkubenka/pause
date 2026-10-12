@@ -101,4 +101,12 @@ class TierEditViewModelTest {
         kotlinx.coroutines.delay(200)
         assertEquals(1, calls)
     }
+
+    @Test fun overflowing_wait_is_rejected() = runBlocking<Unit> {
+        val vm = vm(0)
+        vm.update { it.copy(name = "Overflow", minPrice = "250", waitAmount = "400000000000000000", waitUnit = WaitUnit.DAYS) }
+        vm.save { error("should not save") }
+        assertNotNull(vm.state.value.error)
+        assertEquals(0, config.tiers().count { it.name == "Overflow" })
+    }
 }

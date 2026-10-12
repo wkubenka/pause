@@ -75,6 +75,7 @@ class TierEditViewModel @Inject constructor(
         val minCents = Money.parseToCents(s.minPrice) ?: return fail("Enter the starting price, like 25.")
         val amount = s.waitAmount.trim().ifEmpty { "0" }.toLongOrNull()?.takeIf { it >= 0 }
             ?: return fail("Enter the wait as a whole number.")
+        if (amount > MAX_WAIT_HOURS) return fail("Keep the wait under a year.")
         val hours = amount * if (s.waitUnit == WaitUnit.DAYS) 24 else 1
         if (hours > MAX_WAIT_HOURS) return fail("Keep the wait under a year.")
         if (s.mode == TierMode.SHORT && s.selectedQuestionIds.isEmpty()) return fail("Pick at least one question for the short list.")
