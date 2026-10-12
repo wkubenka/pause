@@ -1,5 +1,7 @@
 package com.astute.pause.ui.settings
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -19,6 +21,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,6 +41,12 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var notificationsOn by remember { mutableStateOf(true) }
+    LifecycleResumeEffect(Unit) {
+        notificationsOn = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        onPauseOrDispose {}
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -61,6 +75,19 @@ fun SettingsScreen(
             }
             item { HorizontalDivider() }
             item { Header("Notifications") }
+            if (!notificationsOn) item {
+                ListItem(
+                    modifier = Modifier.clickable {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    },
+                    headlineContent = { Text("Notifications are off for Pause") },
+                    supportingContent = { Text("Tap to open system settings") },
+                )
+            }
             item { Toggle("When a wait ends", state.notifications.remindersEnabled, viewModel::setReminders) }
             item { Toggle("One gentle nudge a day later", state.notifications.nudgeEnabled, viewModel::setNudge) }
             item { Toggle("90-day look back", state.notifications.followUpEnabled, viewModel::setFollowUp) }
