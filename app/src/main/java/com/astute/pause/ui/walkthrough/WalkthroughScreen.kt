@@ -74,6 +74,16 @@ fun WalkthroughScreen(
             Text("${q.group.label} · ${state.index + 1} of ${state.questions.size}", style = MaterialTheme.typography.labelMedium)
             Text(q.text, style = MaterialTheme.typography.headlineSmall)
             AnswerInput(q, state.answer, viewModel::setAnswer)
+            state.followUpPrompt?.let { prompt ->
+                Text(prompt, style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = state.followUp,
+                    onValueChange = viewModel::setFollowUp,
+                    label = { Text("Your answer (optional)") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             OutlinedTextField(
                 value = state.note,
                 onValueChange = viewModel::setNote,

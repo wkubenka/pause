@@ -1,5 +1,6 @@
 package com.astute.pause.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -29,4 +30,9 @@ data class Answer(
     val answeredAt: Instant,
     val phase: AnswerPhase,
     val flagged: Boolean = false,
+    /** Snapshot of the follow-up prompt for the chosen option; blank when it had none. */
+    @ColumnInfo(defaultValue = "") val followUpQuestion: String = "",
+    @ColumnInfo(defaultValue = "") val followUp: String = "",
+    /** Follow-ups are free text: never auto-flagged, only by the user on the summary. */
+    @ColumnInfo(defaultValue = "0") val followUpFlagged: Boolean = false,
 )

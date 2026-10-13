@@ -41,7 +41,7 @@ class SeedDataTest {
         assertEquals("Small", small.name)
         assertEquals(TierMode.SHORT, small.mode)
         val texts = small.questionIds.map { db.questionDao().get(it)!!.text }
-        assertTrue(texts[0].startsWith("Do I actually need this"))
+        assertEquals("Why do I want this?", texts[0])
         assertTrue(texts[1].startsWith("Do I already own something"))
         assertTrue(texts[2].startsWith("Can I afford this comfortably"))
     }
@@ -68,5 +68,27 @@ class SeedDataTest {
             if (q.answerType == AnswerType.CHOICE) assertTrue(q.options.size >= 2)
             assertTrue("${q.id} warnings ${q.warningAnswers}", valid.containsAll(q.warningAnswers))
         }
+    }
+
+    @Test fun reworked_choice_questions_have_three_options_one_warning_and_follow_ups() = runBlocking<Unit> {
+        val q = db.questionDao().all().associateBy { it.id }
+        assertEquals("Why do I want this?", q.getValue(1).text)
+        assertEquals(listOf(SeedData.WANT_NEED, SeedData.WANT_UPGRADE, SeedData.WANT_FEELING), q.getValue(1).options)
+        assertEquals(listOf(SeedData.WANT_FEELING), q.getValue(1).warningAnswers)
+        assertEquals(mapOf(SeedData.WANT_UPGRADE to "What specifically gets better, and how often will I notice?"), q.getValue(1).followUps)
+
+        assertEquals("Am I buying for my actual life, or for an ideal version of my life?", q.getValue(3).text)
+        assertEquals(listOf(SeedData.LIFE_NOW, SeedData.LIFE_STARTED, SeedData.LIFE_IDEAL), q.getValue(3).options)
+        assertEquals(listOf(SeedData.LIFE_IDEAL), q.getValue(3).warningAnswers)
+        assertEquals(mapOf(SeedData.LIFE_STARTED to "What have I already done toward it?"), q.getValue(3).followUps)
+
+        assertEquals("Will this make my life simpler, or just add one more thing to manage?", q.getValue(9).text)
+        assertEquals(listOf(SeedData.SIMPLER, SeedData.REPLACES, SeedData.ONE_MORE_THING), q.getValue(9).options)
+        assertEquals(listOf(SeedData.ONE_MORE_THING), q.getValue(9).warningAnswers)
+        assertEquals(emptyMap<String, String>(), q.getValue(9).followUps)
+
+        listOf(1L, 3L, 9L).forEach { assertEquals(AnswerType.CHOICE, q.getValue(it).answerType) }
+        assertEquals(listOf(1L, 5L, 14L), db.tierDao().all().first().questionIds)
+        q.values.filter { it.id !in setOf(1L, 3L) }.forEach { assertEquals(emptyMap<String, String>(), it.followUps) }
     }
 }

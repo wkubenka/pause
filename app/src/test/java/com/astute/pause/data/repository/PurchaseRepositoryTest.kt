@@ -1,6 +1,7 @@
 package com.astute.pause.data.repository
 
 import com.astute.pause.data.local.PauseDatabase
+import com.astute.pause.data.local.SeedData
 import com.astute.pause.data.local.entity.AnswerPhase
 import com.astute.pause.data.local.entity.CurrencyTotal
 import com.astute.pause.data.local.entity.ItemStatus
@@ -164,7 +165,7 @@ class PurchaseRepositoryTest {
     @Test fun delete_removes_item_answers_and_reminders() = runBlocking {
         val id = repo.startItem("Bike", "USD")
         repo.setCost(id, 50_000)
-        repo.saveAnswer(id, repo.questionsFor(id, AnswerPhase.INITIAL).first(), "I need it", "", AnswerPhase.INITIAL)
+        repo.saveAnswer(id, repo.questionsFor(id, AnswerPhase.INITIAL).first(), SeedData.WANT_NEED, "", AnswerPhase.INITIAL)
         repo.startWaiting(id)
         repo.deleteItem(id)
         assertNull(repo.item(id))
@@ -178,5 +179,20 @@ class PurchaseRepositoryTest {
         val results = (1..5).map { async(Dispatchers.Default) { repo.markBought(id, 500) } }.awaitAll()
         assertEquals(1, results.count { it })
         assertEquals(1, scheduler.followUpCalls)
+    }
+
+    @Test fun follow_up_flag_survives_resave_but_not_a_changed_choice() = runBlocking<Unit> {
+        val id = repo.startItem("Bike", "USD").also { repo.setCost(it, 50_000) }
+        val q1 = repo.questionsFor(id, AnswerPhase.INITIAL).first { it.id == 1L }
+        repo.saveAnswer(id, q1, SeedData.WANT_UPGRADE, "", AnswerPhase.INITIAL, followUp = "Lighter")
+        val a = repo.answersFor(id, AnswerPhase.INITIAL).single()
+        repo.setFollowUpFlagged(a.id, true)
+        repo.saveAnswer(id, q1, SeedData.WANT_UPGRADE, "", AnswerPhase.INITIAL, followUp = "Lighter frame")
+        assertTrue(repo.answersFor(id, AnswerPhase.INITIAL).single().followUpFlagged)
+        repo.saveAnswer(id, q1, SeedData.WANT_NEED, "", AnswerPhase.INITIAL, followUp = "ignored")
+        val after = repo.answersFor(id, AnswerPhase.INITIAL).single()
+        assertEquals("", after.followUp)
+        assertEquals("", after.followUpQuestion)
+        assertFalse(after.followUpFlagged)
     }
 }

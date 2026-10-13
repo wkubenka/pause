@@ -30,7 +30,7 @@ data class SummaryState(
     val decideOn: String? = null,
     val error: String? = null,
 ) {
-    val warningCount: Int get() = answers.count { it.flagged }
+    val warningCount: Int get() = answers.count { it.flagged || it.followUpFlagged }
     val isOpen: Boolean get() = item?.status == ItemStatus.CONSIDERING || item?.status == ItemStatus.WAITING
 
     val canStartWait: Boolean
@@ -71,6 +71,11 @@ class SummaryViewModel @Inject constructor(
     fun toggleFlag(answer: Answer) {
         if (answer.answerType != AnswerType.TEXT) return
         viewModelScope.launch { repo.setFlagged(answer.id, !answer.flagged) }
+    }
+
+    fun toggleFollowUpFlag(answer: Answer) {
+        if (answer.followUp.isBlank()) return
+        viewModelScope.launch { repo.setFollowUpFlagged(answer.id, !answer.followUpFlagged) }
     }
 
     fun startWaiting(onDone: () -> Unit) {

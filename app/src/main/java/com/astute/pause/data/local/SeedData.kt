@@ -17,19 +17,33 @@ import com.astute.pause.data.local.entity.Tier
 import com.astute.pause.data.local.entity.TierMode
 
 /**
- * Default question text is quoted verbatim from "The Smart Spending Checklist" by Sunny Kind Journey.
+ * Default question text is quoted verbatim from "The Smart Spending Checklist" by Sunny Kind Journey,
+ * except question 1, which is adapted from its "Do I actually need this, or do I just want the feeling of
+ * getting something new?". The answer choices for questions 1, 3 and 9 are our own.
  * All credit for the questions belongs to Sunny Kind Journey; used here for personal use.
  */
 object SeedData {
     const val YES = "yes"
     const val NO = "no"
 
+    const val WANT_NEED = "Something I need (what I have is broken, missing, or unsafe)"
+    const val WANT_UPGRADE = "An upgrade to something I use a lot (it would make a real, regular difference)"
+    const val WANT_FEELING = "Mostly the feeling of getting something new"
+    const val LIFE_NOW = "For how I actually live now"
+    const val LIFE_STARTED = "For something I've already started or scheduled"
+    const val LIFE_IDEAL = "For a version of me I haven't started being yet"
+    const val SIMPLER = "Simplifies things (fewer steps, less upkeep)"
+    const val REPLACES = "Replaces something I already have"
+    const val ONE_MORE_THING = "Adds one more thing to manage"
+
     val questions: List<Question> = listOf(
-        q(1, NEED_CLARITY, "Do I actually need this, or do I just want the feeling of getting something new?",
-            CHOICE, options = listOf("I need it", "I want the feeling"), warning = listOf("I want the feeling")),
+        q(1, NEED_CLARITY, "Why do I want this?", CHOICE,
+            options = listOf(WANT_NEED, WANT_UPGRADE, WANT_FEELING), warning = listOf(WANT_FEELING),
+            followUps = mapOf(WANT_UPGRADE to "What specifically gets better, and how often will I notice?")),
         q(2, NEED_CLARITY, "What problem will this solve in my real life, specifically?", TEXT),
-        q(3, NEED_CLARITY, "Am I buying for my actual life, or for an ideal version of my life?",
-            CHOICE, options = listOf("My actual life", "An ideal version"), warning = listOf("An ideal version")),
+        q(3, NEED_CLARITY, "Am I buying for my actual life, or for an ideal version of my life?", CHOICE,
+            options = listOf(LIFE_NOW, LIFE_STARTED, LIFE_IDEAL), warning = listOf(LIFE_IDEAL),
+            followUps = mapOf(LIFE_STARTED to "What have I already done toward it?")),
         q(4, NEED_CLARITY, "Am I calm enough to make this decision clearly?", YES_NO,
             warning = listOf(NO), recheck = true),
         q(5, ALTERNATIVES_TIMING, "Do I already own something that does this well enough?", YES_NO,
@@ -41,7 +55,7 @@ object SeedData {
         q(8, ALTERNATIVES_TIMING, "Would I still want this at full price, with no sale or hype around it?", YES_NO,
             warning = listOf(NO), recheck = true),
         q(9, USEFULNESS_QUALITY, "Will this make my life simpler, or just add one more thing to manage?", CHOICE,
-            options = listOf("Simpler", "One more thing to manage"), warning = listOf("One more thing to manage")),
+            options = listOf(SIMPLER, REPLACES, ONE_MORE_THING), warning = listOf(ONE_MORE_THING)),
         q(10, USEFULNESS_QUALITY,
             "Will buying the better version help me buy this once instead of replacing it again later?", YES_NO),
         q(11, USEFULNESS_QUALITY, "Will I use this enough for higher quality to really matter?", YES_NO,
@@ -76,6 +90,7 @@ object SeedData {
                 put("options", converters.stringsToJson(q.options))
                 put("warningAnswers", converters.stringsToJson(q.warningAnswers))
                 put("inRecheck", if (q.inRecheck) 1 else 0)
+                put("followUps", converters.stringMapToJson(q.followUps))
             })
         }
         tiers.forEach { t ->
@@ -98,8 +113,9 @@ object SeedData {
         options: List<String> = emptyList(),
         warning: List<String> = emptyList(),
         recheck: Boolean = false,
+        followUps: Map<String, String> = emptyMap(),
     ) = Question(
         id = id, text = text, group = group, sortOrder = id.toInt(), answerType = type,
-        options = options, warningAnswers = warning, inRecheck = recheck,
+        options = options, warningAnswers = warning, inRecheck = recheck, followUps = followUps,
     )
 }

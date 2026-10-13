@@ -15,7 +15,7 @@ import com.astute.pause.data.local.entity.Tier
 
 @Database(
     entities = [Item::class, Answer::class, Question::class, Tier::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

@@ -77,7 +77,18 @@ fun QuestionEditScreen(onDone: () -> Unit, viewModel: QuestionEditViewModel = hi
                         Text(AnswerEvaluator.display(state.answerType, choice))
                     }
                 }
-            } else if (state.answerType == AnswerType.TEXT) {
+            }
+            if (state.answerType == AnswerType.CHOICE && state.options.isNotEmpty()) {
+                Text("Follow-up questions (optional)", style = MaterialTheme.typography.titleSmall)
+                Text("Asked as free text right after that choice is picked.", style = MaterialTheme.typography.bodySmall)
+                state.options.forEach { option ->
+                    OutlinedTextField(
+                        state.followUps[option].orEmpty(), { v -> viewModel.setFollowUp(option, v) },
+                        label = { Text("After \"$option\"") }, modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+            if (state.answerType == AnswerType.TEXT) {
                 Text("You can flag free-text answers yourself on the summary.", style = MaterialTheme.typography.bodySmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {

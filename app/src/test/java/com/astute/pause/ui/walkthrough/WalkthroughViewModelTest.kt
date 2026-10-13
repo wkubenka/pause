@@ -2,6 +2,7 @@ package com.astute.pause.ui.walkthrough
 
 import androidx.lifecycle.SavedStateHandle
 import com.astute.pause.data.local.PauseDatabase
+import com.astute.pause.data.local.SeedData
 import com.astute.pause.data.local.entity.AnswerPhase
 import com.astute.pause.data.repository.ConfigRepository
 import com.astute.pause.data.repository.PurchaseRepository
@@ -15,6 +16,7 @@ import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -45,14 +47,14 @@ class WalkthroughViewModelTest {
         val id = item(1_000)
         val vm = vm(id)
         assertEquals(3, vm.state.value.questions.size)
-        vm.setAnswer("I need it"); vm.next()
+        vm.setAnswer(SeedData.WANT_NEED); vm.next()
         vm.state.awaitFirst { it.index == 1 }
         clock.advance(Duration.ofSeconds(1)); vm.setAnswer("no"); vm.next()
         vm.state.awaitFirst { it.index == 2 }
         clock.advance(Duration.ofSeconds(1)); vm.setAnswer("yes"); vm.setNote("budgeted"); vm.next()
         vm.state.awaitFirst { it.finished }
         val saved = repo.answersFor(id, AnswerPhase.INITIAL)
-        assertEquals(listOf("I need it", "no", "yes"), saved.map { it.answer })
+        assertEquals(listOf(SeedData.WANT_NEED, "no", "yes"), saved.map { it.answer })
         assertEquals("budgeted", saved.last().note)
     }
 
@@ -61,7 +63,7 @@ class WalkthroughViewModelTest {
         assertFalse(vm.state.value.canContinue)          // Q1 is a choice
         vm.next()
         assertEquals(0, vm.state.value.index)
-        vm.setAnswer("I need it"); vm.next()
+        vm.setAnswer(SeedData.WANT_NEED); vm.next()
         vm.state.awaitFirst { it.index == 1 }             // Q2 is free text
         assertTrue(vm.state.value.canContinue)
     }
@@ -69,20 +71,20 @@ class WalkthroughViewModelTest {
     @Test fun resumes_at_first_unanswered_with_previous_answers_kept() = runBlocking<Unit> {
         val id = item(1_000)
         val first = vm(id)
-        first.setAnswer("I want the feeling"); first.next()
+        first.setAnswer(SeedData.WANT_FEELING); first.next()
         first.state.awaitFirst { it.index == 1 }
 
         val reopened = vm(id)       // e.g. after process death
         assertEquals(1, reopened.state.value.index)
         assertTrue(reopened.back())
-        assertEquals("I want the feeling", reopened.state.value.answer)
+        assertEquals(SeedData.WANT_FEELING, reopened.state.value.answer)
         assertFalse(reopened.back())
     }
 
     @Test fun fully_answered_item_reopens_at_last_question_with_answer_restored() = runBlocking<Unit> {
         val id = item(1_000)
         val first = vm(id)
-        first.setAnswer("I need it"); first.next(); first.state.awaitFirst { it.index == 1 }
+        first.setAnswer(SeedData.WANT_NEED); first.next(); first.state.awaitFirst { it.index == 1 }
         clock.advance(Duration.ofSeconds(1)); first.setAnswer("no"); first.next(); first.state.awaitFirst { it.index == 2 }
         clock.advance(Duration.ofSeconds(1)); first.setAnswer("yes"); first.next(); first.state.awaitFirst { it.finished }
 
@@ -95,7 +97,7 @@ class WalkthroughViewModelTest {
 
     @Test fun back_keeps_unsaved_draft_when_returning() = runBlocking<Unit> {
         val vm = vm(item(1_000))
-        vm.setAnswer("I need it"); vm.next()
+        vm.setAnswer(SeedData.WANT_NEED); vm.next()
         vm.state.awaitFirst { it.index == 1 }
         vm.setAnswer("yes")
         vm.back()
@@ -124,7 +126,7 @@ class WalkthroughViewModelTest {
     @Test fun double_next_advances_one_question_and_saves_one_answer() = runBlocking<Unit> {
         val id = item(1_000)
         val vm = vm(id)
-        vm.setAnswer("I need it")
+        vm.setAnswer(SeedData.WANT_NEED)
         vm.next(); vm.next()
         vm.state.awaitFirst { it.index == 1 }
         assertEquals(1, vm.state.value.index)
@@ -134,7 +136,7 @@ class WalkthroughViewModelTest {
     @Test fun next_right_after_advancing_to_free_text_is_ignored() = runBlocking<Unit> {
         val id = item(50_000)
         val vm = vm(id)
-        vm.setAnswer("I need it"); vm.next()
+        vm.setAnswer(SeedData.WANT_NEED); vm.next()
         vm.state.awaitFirst { it.index == 1 }             // Q2 is free text, blank allowed
         settle()                                          // let the in-flight guard clear; only the cooldown remains
         vm.next()                                         // clock not advanced
@@ -146,7 +148,7 @@ class WalkthroughViewModelTest {
     @Test fun next_at_exactly_500ms_after_advancing_is_accepted() = runBlocking<Unit> {
         val id = item(50_000)
         val vm = vm(id)
-        vm.setAnswer("I need it"); vm.next()
+        vm.setAnswer(SeedData.WANT_NEED); vm.next()
         vm.state.awaitFirst { it.index == 1 }
         settle()
         clock.advance(Duration.ofMillis(499)); vm.next()
@@ -155,5 +157,50 @@ class WalkthroughViewModelTest {
         clock.advance(Duration.ofMillis(1)); vm.setAnswer("no"); vm.next()
         vm.state.awaitFirst { it.index == 2 }
         assertEquals(2, repo.answersFor(id, AnswerPhase.INITIAL).size)
+    }
+
+    @Test fun follow_up_shows_only_for_its_option_and_is_saved_with_the_answer() = runBlocking<Unit> {
+        val id = item(1_000)
+        val vm = vm(id)
+        vm.setAnswer(SeedData.WANT_NEED)
+        assertNull(vm.state.value.followUpPrompt)
+        vm.setAnswer(SeedData.WANT_UPGRADE)
+        assertEquals("What specifically gets better, and how often will I notice?", vm.state.value.followUpPrompt)
+        assertTrue(vm.state.value.canContinue)                // follow-up is skippable
+        vm.setFollowUp("  Faster boot, every morning  ")
+        vm.next()
+        vm.state.awaitFirst { it.index == 1 }
+        val saved = repo.answersFor(id, AnswerPhase.INITIAL).single()
+        assertEquals(SeedData.WANT_UPGRADE, saved.answer)
+        assertEquals("What specifically gets better, and how often will I notice?", saved.followUpQuestion)
+        assertEquals("Faster boot, every morning", saved.followUp)
+        assertFalse(saved.flagged)
+        assertFalse(saved.followUpFlagged)
+
+        assertTrue(vm.back())
+        assertEquals("  Faster boot, every morning  ", vm.state.value.followUp)   // the in-memory draft, as typed
+    }
+
+    @Test fun switching_away_from_follow_up_option_drops_the_follow_up() = runBlocking<Unit> {
+        val id = item(1_000)
+        val vm = vm(id)
+        vm.setAnswer(SeedData.WANT_UPGRADE); vm.setFollowUp("x")
+        vm.setAnswer(SeedData.WANT_FEELING)
+        vm.next()
+        vm.state.awaitFirst { it.index == 1 }
+        val saved = repo.answersFor(id, AnswerPhase.INITIAL).single()
+        assertEquals("", saved.followUpQuestion)
+        assertEquals("", saved.followUp)
+        assertTrue(saved.flagged)
+    }
+
+    @Test fun saved_choice_that_is_no_longer_an_option_is_asked_again() = runBlocking<Unit> {
+        val id = item(1_000)
+        val q1 = repo.questionsFor(id, AnswerPhase.INITIAL).first()
+        repo.saveAnswer(id, q1.copy(options = listOf("I need it", "I want the feeling")), "I need it", "", AnswerPhase.INITIAL)
+        val vm = vm(id)
+        assertEquals(0, vm.state.value.index)
+        assertEquals("", vm.state.value.answer)
+        assertFalse(vm.state.value.canContinue)
     }
 }

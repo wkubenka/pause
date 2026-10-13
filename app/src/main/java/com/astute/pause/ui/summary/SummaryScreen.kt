@@ -84,7 +84,11 @@ fun SummaryScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: SummaryView
                 },
                 style = MaterialTheme.typography.bodyLarge,
             )
-            AnswerList(state.answers, onToggleFlag = if (state.isOpen) viewModel::toggleFlag else null)
+            AnswerList(
+                state.answers,
+                onToggleFlag = if (state.isOpen) viewModel::toggleFlag else null,
+                onToggleFollowUpFlag = if (state.isOpen) viewModel::toggleFollowUpFlag else null,
+            )
             Text(
                 "There's no right answer here, and the choice is yours. Not now doesn't have to mean never.",
                 style = MaterialTheme.typography.bodyMedium,

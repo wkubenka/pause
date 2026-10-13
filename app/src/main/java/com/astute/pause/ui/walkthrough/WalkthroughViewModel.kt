@@ -8,6 +8,7 @@ import com.astute.pause.data.local.entity.AnswerType
 import com.astute.pause.data.local.entity.ItemStatus
 import com.astute.pause.data.local.entity.Question
 import com.astute.pause.data.repository.PurchaseRepository
+import com.astute.pause.domain.AnswerEvaluator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,10 +26,13 @@ data class WalkthroughState(
     val index: Int = 0,
     val answer: String = "",
     val note: String = "",
+    val followUp: String = "",
     val finished: Boolean = false,
     val alreadyDecided: Boolean = false,
 ) {
     val current: Question? get() = questions.getOrNull(index)
+    /** Shown under the choices once an option with a follow-up is picked. Answering it is optional. */
+    val followUpPrompt: String? get() = current?.let { AnswerEvaluator.followUpPrompt(it, answer) }
     val canContinue: Boolean get() = current?.let { it.answerType == AnswerType.TEXT || answer.isNotBlank() } ?: false
     val progress: Float get() = if (questions.isEmpty()) 1f else (index + 1f) / questions.size
 }
@@ -41,7 +45,7 @@ class WalkthroughViewModel @Inject constructor(
 ) : ViewModel() {
     private val itemId: Long = checkNotNull(savedStateHandle["itemId"])
     private val phase = if (savedStateHandle.get<Boolean>("recheck") == true) AnswerPhase.RECHECK else AnswerPhase.INITIAL
-    private val drafts = mutableMapOf<Long, Pair<String, String>>()
+    private val drafts = mutableMapOf<Long, Draft>()
 
     /** Main-thread confined; ignores next() while a save is in flight so one tap advances one question. */
     private var saving = false
@@ -60,7 +64,13 @@ class WalkthroughViewModel @Inject constructor(
                 return@launch
             }
             val questions = repo.questionsFor(itemId, phase)
-            repo.answersFor(itemId, phase).forEach { drafts[it.questionId] = it.answer to it.note }
+            val byId = questions.associateBy { it.id }
+            repo.answersFor(itemId, phase).forEach { a ->
+                // A choice saved before its options were reworded is no longer valid: ask it again.
+                val q = byId[a.questionId]
+                if (q != null && q.answerType == AnswerType.CHOICE && a.answer !in q.options) return@forEach
+                drafts[a.questionId] = Draft(a.answer, a.note, a.followUp)
+            }
             val start = questions.indexOfFirst { it.id !in drafts }.takeIf { it >= 0 }
                 ?: questions.lastIndex.coerceAtLeast(0) // all answered: land on the last one so "See summary" is one tap
             _state.value = WalkthroughState(
@@ -72,6 +82,7 @@ class WalkthroughViewModel @Inject constructor(
 
     fun setAnswer(value: String) = edit { it.copy(answer = value) }
     fun setNote(value: String) = edit { it.copy(note = value) }
+    fun setFollowUp(value: String) = edit { it.copy(followUp = value) }
 
     fun next() {
         val s = _state.value
@@ -81,7 +92,7 @@ class WalkthroughViewModel @Inject constructor(
         saving = true
         viewModelScope.launch {
             try {
-                repo.saveAnswer(itemId, q, s.answer, s.note, phase)
+                repo.saveAnswer(itemId, q, s.answer, s.note, phase, s.followUp)
                 val nextIndex = s.index + 1
                 _state.value = if (nextIndex >= s.questions.size) s.copy(finished = true)
                 else s.copy(index = nextIndex).withDraft().also { advancedAt = clock.instant() }
@@ -101,15 +112,17 @@ class WalkthroughViewModel @Inject constructor(
 
     private fun edit(transform: (WalkthroughState) -> WalkthroughState) {
         val next = transform(_state.value)
-        next.current?.let { drafts[it.id] = next.answer to next.note }
+        next.current?.let { drafts[it.id] = Draft(next.answer, next.note, next.followUp) }
         _state.value = next
     }
 
     private fun WalkthroughState.withDraft(): WalkthroughState {
         val q = current ?: return this
-        val (answer, note) = drafts[q.id] ?: ("" to "")
-        return copy(answer = answer, note = note)
+        val draft = drafts[q.id] ?: Draft()
+        return copy(answer = draft.answer, note = draft.note, followUp = draft.followUp)
     }
+
+    private data class Draft(val answer: String = "", val note: String = "", val followUp: String = "")
 
     private companion object {
         val ADVANCE_COOLDOWN: Duration = Duration.ofMillis(500)

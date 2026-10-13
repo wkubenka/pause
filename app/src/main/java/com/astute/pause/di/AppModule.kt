@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import androidx.work.WorkManager
+import com.astute.pause.data.local.Migrations
 import com.astute.pause.data.local.PauseDatabase
 import com.astute.pause.data.settings.DataStoreNotificationSettings
 import com.astute.pause.data.settings.NotificationSettings
@@ -32,6 +33,7 @@ object AppModule {
     fun database(@ApplicationContext context: Context): PauseDatabase =
         Room.databaseBuilder(context, PauseDatabase::class.java, PauseDatabase.NAME)
             .addCallback(PauseDatabase.SEED_CALLBACK)
+            .addMigrations(Migrations.MIGRATION_1_2)
             .build()
 
     @Provides

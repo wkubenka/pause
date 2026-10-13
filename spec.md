@@ -40,7 +40,7 @@ Per tier the user sets: price range, mode (short list / full list), and wait len
 
 - Seed with the 15 questions from the Smart Spending Checklist, grouped as Need & Clarity, Alternatives & Timing, Usefulness & Quality, and Costs & Tradeoff.
 - Questions are stored as data: editable, reorderable, and each tagged with which tiers include it.
-- Default "Small" tier set: *Do I actually need this?*, *Do I already own something that does this well enough?*, *Can I afford this comfortably, not just technically?*
+- Default "Small" tier set: *Why do I want this?*, *Do I already own something that does this well enough?*, *Can I afford this comfortably, not just technically?*
 - Default re-check set (after waiting): *Would I still want this at full price, with no sale or hype?*, *Am I calm enough to decide clearly?*, plus *What am I saying no to?*
 - Note: the checklist is by Sunny Kind Journey. Fine for personal use. If this is ever shared or published, write original questions or get permission.
 

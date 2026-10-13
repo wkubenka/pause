@@ -27,4 +27,7 @@ interface AnswerDao {
 
     @Query("UPDATE answers SET flagged = :flagged WHERE id = :id")
     suspend fun setFlagged(id: Long, flagged: Boolean)
+
+    @Query("UPDATE answers SET followUpFlagged = :flagged WHERE id = :id")
+    suspend fun setFollowUpFlagged(id: Long, flagged: Boolean)
 }

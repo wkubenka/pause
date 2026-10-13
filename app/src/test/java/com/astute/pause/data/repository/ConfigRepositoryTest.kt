@@ -79,4 +79,16 @@ class ConfigRepositoryTest {
         config.deleteTier(config.tier(id)!!)
         assertEquals(5, config.tiers().size)
     }
+
+    @Test fun save_question_keeps_follow_ups_only_for_listed_choices() = runBlocking<Unit> {
+        val id = config.saveQuestion(
+            Question(
+                text = "Which?", group = QuestionGroup.NEED_CLARITY, sortOrder = 0, answerType = AnswerType.CHOICE,
+                options = listOf("A", "B"), followUps = mapOf(" A " to "  Why A? ", "B" to "  ", "Gone" to "Orphan"),
+            )
+        )
+        assertEquals(mapOf("A" to "Why A?"), config.question(id)!!.followUps)
+        config.saveQuestion(config.question(id)!!.copy(answerType = AnswerType.YES_NO))
+        assertEquals(emptyMap<String, String>(), config.question(id)!!.followUps)
+    }
 }

@@ -67,11 +67,23 @@ class PurchaseRepository @Inject constructor(
         }
     }
 
-    suspend fun saveAnswer(itemId: Long, question: Question, answer: String, note: String, phase: AnswerPhase) {
+    suspend fun saveAnswer(
+        itemId: Long,
+        question: Question,
+        answer: String,
+        note: String,
+        phase: AnswerPhase,
+        followUp: String = "",
+    ) {
         db.withTransaction {
             val existing = answers.find(itemId, question.id, phase)
             val flagged = if (question.answerType == AnswerType.TEXT) existing?.flagged ?: false
             else AnswerEvaluator.isWarning(question, answer)
+            val followUpQuestion = AnswerEvaluator.followUpPrompt(question, answer.trim()).orEmpty()
+            val followUpText = if (followUpQuestion.isEmpty()) "" else followUp.trim()
+            // Keep the user's flag only while it still points at the same follow-up.
+            val followUpFlagged = followUpText.isNotEmpty() && existing?.followUpFlagged == true &&
+                existing.followUpQuestion == followUpQuestion
             val row = Answer(
                 id = existing?.id ?: 0,
                 itemId = itemId,
@@ -83,6 +95,9 @@ class PurchaseRepository @Inject constructor(
                 answeredAt = clock.instant(),
                 phase = phase,
                 flagged = flagged,
+                followUpQuestion = followUpQuestion,
+                followUp = followUpText,
+                followUpFlagged = followUpFlagged,
             )
             if (existing == null) answers.insert(row) else answers.update(row)
         }
@@ -91,6 +106,7 @@ class PurchaseRepository @Inject constructor(
     fun observeAnswers(itemId: Long, phase: AnswerPhase): Flow<List<Answer>> = answers.observeForItem(itemId, phase)
     suspend fun answersFor(itemId: Long, phase: AnswerPhase): List<Answer> = answers.forItem(itemId, phase)
     suspend fun setFlagged(answerId: Long, flagged: Boolean) = answers.setFlagged(answerId, flagged)
+    suspend fun setFollowUpFlagged(answerId: Long, flagged: Boolean) = answers.setFollowUpFlagged(answerId, flagged)
 
     suspend fun startWaiting(itemId: Long): Boolean {
         val until = db.withTransaction {

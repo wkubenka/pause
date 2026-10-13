@@ -11,6 +11,10 @@ object AnswerEvaluator {
         AnswerType.YES_NO, AnswerType.CHOICE -> answer in question.warningAnswers
     }
 
+    /** The free-text follow-up to ask after this answer, or null when the chosen option has none. */
+    fun followUpPrompt(question: Question, answer: String): String? =
+        if (question.answerType == AnswerType.CHOICE) question.followUps[answer]?.takeIf { it.isNotBlank() } else null
+
     fun display(type: AnswerType, answer: String): String = when {
         type == AnswerType.YES_NO && answer == SeedData.YES -> "Yes"
         type == AnswerType.YES_NO && answer == SeedData.NO -> "No"

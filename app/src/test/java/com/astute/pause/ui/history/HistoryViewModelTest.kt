@@ -2,6 +2,7 @@ package com.astute.pause.ui.history
 
 import androidx.lifecycle.SavedStateHandle
 import com.astute.pause.data.local.PauseDatabase
+import com.astute.pause.data.local.SeedData
 import com.astute.pause.data.local.entity.AnswerPhase
 import com.astute.pause.data.repository.ConfigRepository
 import com.astute.pause.data.repository.PurchaseRepository
@@ -51,7 +52,7 @@ class HistoryViewModelTest {
     @Test fun detail_shows_original_question_text_after_archive_and_edit() = runBlocking<Unit> {
         val id = repo.startItem("Desk", "USD").also { repo.setCost(it, 1_000) }
         val q = repo.questionsFor(id, AnswerPhase.INITIAL).first()
-        repo.saveAnswer(id, q, "I need it", "", AnswerPhase.INITIAL)
+        repo.saveAnswer(id, q, SeedData.WANT_NEED, "", AnswerPhase.INITIAL)
         repo.markBought(id, 1_000)
         val config = ConfigRepository(db)
         config.saveQuestion(q.copy(text = "Rewritten"))

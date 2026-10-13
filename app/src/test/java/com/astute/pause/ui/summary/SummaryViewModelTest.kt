@@ -2,6 +2,7 @@ package com.astute.pause.ui.summary
 
 import androidx.lifecycle.SavedStateHandle
 import com.astute.pause.data.local.PauseDatabase
+import com.astute.pause.data.local.SeedData
 import com.astute.pause.data.local.entity.AnswerPhase
 import com.astute.pause.data.local.entity.ItemStatus
 import com.astute.pause.data.repository.PurchaseRepository
@@ -42,7 +43,7 @@ class SummaryViewModelTest {
         val id = repo.startItem("Desk", "USD")
         repo.setCost(id, cents)
         val qs = repo.questionsFor(id, AnswerPhase.INITIAL)
-        repo.saveAnswer(id, qs.first { it.id == 1L }, "I want the feeling", "", AnswerPhase.INITIAL)  // warning
+        repo.saveAnswer(id, qs.first { it.id == 1L }, SeedData.WANT_FEELING, "", AnswerPhase.INITIAL)  // warning
         repo.saveAnswer(id, qs.first { it.id == 5L }, "no", "", AnswerPhase.INITIAL)                  // fine
         repo.saveAnswer(id, qs.first { it.id == 14L }, "no", "", AnswerPhase.INITIAL)                 // warning
         return id
@@ -115,5 +116,35 @@ class SummaryViewModelTest {
         vm.markSkipped { done.complete(Unit) }
         done.await()
         assertEquals(ItemStatus.SKIPPED, repo.item(id)!!.status)
+    }
+
+    @Test fun summary_shows_follow_up_and_user_can_flag_it() = runBlocking<Unit> {
+        val id = repo.startItem("Desk", "USD").also { repo.setCost(it, 50_000) }
+        val qs = repo.questionsFor(id, AnswerPhase.INITIAL)
+        repo.saveAnswer(id, qs.first { it.id == 3L }, SeedData.LIFE_STARTED, "", AnswerPhase.INITIAL, followUp = "Signed up for a class")
+        repo.saveAnswer(id, qs.first { it.id == 9L }, SeedData.ONE_MORE_THING, "", AnswerPhase.INITIAL)
+        val vm = vm(id)
+        val s = vm.state.awaitFirst { it.answers.size == 2 }
+        val life = s.answers.first { it.questionId == 3L }
+        assertEquals(SeedData.LIFE_STARTED, life.answer)
+        assertEquals("What have I already done toward it?", life.followUpQuestion)
+        assertEquals("Signed up for a class", life.followUp)
+        assertFalse(life.flagged)
+        assertTrue(s.answers.first { it.questionId == 9L }.flagged)
+        assertEquals(1, s.warningCount)
+
+        vm.toggleFollowUpFlag(life)
+        val after = vm.state.awaitFirst { it.warningCount == 2 }
+        assertTrue(after.answers.first { it.questionId == 3L }.followUpFlagged)
+    }
+
+    @Test fun skipped_follow_up_cannot_be_flagged() = runBlocking<Unit> {
+        val id = repo.startItem("Desk", "USD").also { repo.setCost(it, 50_000) }
+        val q3 = repo.questionsFor(id, AnswerPhase.INITIAL).first { it.id == 3L }
+        repo.saveAnswer(id, q3, SeedData.LIFE_STARTED, "", AnswerPhase.INITIAL)
+        val vm = vm(id)
+        vm.toggleFollowUpFlag(vm.state.awaitFirst { it.answers.size == 1 }.answers.single())
+        Thread.sleep(300)
+        assertEquals(0, vm.state.value.warningCount)
     }
 }

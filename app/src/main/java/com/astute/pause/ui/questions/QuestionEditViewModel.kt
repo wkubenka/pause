@@ -24,6 +24,8 @@ data class QuestionEditState(
     val answerType: AnswerType = AnswerType.YES_NO,
     val optionsText: String = "",
     val warningAnswers: Set<String> = emptySet(),
+    /** Choice -> optional follow-up prompt. Entries for choices no longer listed are dropped on save. */
+    val followUps: Map<String, String> = emptyMap(),
     val inRecheck: Boolean = false,
     val active: Boolean = true,
     val sortOrder: Int = 0,
@@ -53,7 +55,7 @@ class QuestionEditViewModel @Inject constructor(
             _state.value = if (q == null) QuestionEditState(loading = false)
             else QuestionEditState(
                 loading = false, isNew = false, text = q.text, group = q.group, answerType = q.answerType,
-                optionsText = q.options.joinToString("\n"), warningAnswers = q.warningAnswers.toSet(),
+                optionsText = q.options.joinToString("\n"), warningAnswers = q.warningAnswers.toSet(), followUps = q.followUps,
                 inRecheck = q.inRecheck, active = q.active, sortOrder = q.sortOrder,
             )
         }
@@ -64,6 +66,8 @@ class QuestionEditViewModel @Inject constructor(
     fun toggleWarning(answer: String) = update {
         it.copy(warningAnswers = if (answer in it.warningAnswers) it.warningAnswers - answer else it.warningAnswers + answer)
     }
+
+    fun setFollowUp(option: String, prompt: String) = update { it.copy(followUps = it.followUps + (option to prompt)) }
 
     /** Main-thread confined; a save in flight (or finished) blocks a second one, so onDone runs once. */
     private var finishing = false
@@ -83,6 +87,7 @@ class QuestionEditViewModel @Inject constructor(
                         id = questionId, text = s.text, group = s.group, active = s.active, sortOrder = s.sortOrder,
                         answerType = s.answerType, options = s.options,
                         warningAnswers = s.warningAnswers.filter { it in s.warningChoices }, inRecheck = s.inRecheck,
+                        followUps = if (s.answerType == AnswerType.CHOICE) s.followUps.filterKeys { it in s.options } else emptyMap(),
                     )
                 )
             } catch (e: Throwable) {

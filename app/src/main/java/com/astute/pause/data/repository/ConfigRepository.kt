@@ -61,6 +61,11 @@ class ConfigRepository @Inject constructor(private val db: PauseDatabase) {
             AnswerType.CHOICE -> options
             AnswerType.TEXT -> emptyList()
         }
-        return q.copy(text = q.text.trim(), options = options, warningAnswers = q.warningAnswers.filter { it in valid }.distinct())
+        val followUps = q.followUps.mapKeys { it.key.trim() }.mapValues { it.value.trim() }
+            .filter { (option, prompt) -> option in options && prompt.isNotEmpty() }
+        return q.copy(
+            text = q.text.trim(), options = options, warningAnswers = q.warningAnswers.filter { it in valid }.distinct(),
+            followUps = followUps,
+        )
     }
 }

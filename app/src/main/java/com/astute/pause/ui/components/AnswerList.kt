@@ -23,31 +23,54 @@ import com.astute.pause.domain.AnswerEvaluator
 
 /** Warning signs use the soft tertiary container, which is noticeable without alarming. */
 @Composable
-fun AnswerList(answers: List<Answer>, onToggleFlag: ((Answer) -> Unit)?) {
+fun AnswerList(
+    answers: List<Answer>,
+    onToggleFlag: ((Answer) -> Unit)?,
+    onToggleFollowUpFlag: ((Answer) -> Unit)? = null,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         answers.forEach { answer ->
-            val colors = if (answer.flagged) CardDefaults.cardColors(
+            val highlighted = answer.flagged || answer.followUpFlagged
+            val colors = if (highlighted) CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
             ) else CardDefaults.cardColors()
             Card(colors = colors, modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(12.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (answer.flagged) Text("Worth a second look", style = MaterialTheme.typography.labelSmall)
-                        Text(answer.questionText, style = MaterialTheme.typography.bodyMedium)
-                        Text(AnswerEvaluator.display(answer.answerType, answer.answer), style = MaterialTheme.typography.titleMedium)
-                        if (answer.note.isNotBlank()) Text(answer.note, style = MaterialTheme.typography.bodySmall)
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (highlighted) Text("Worth a second look", style = MaterialTheme.typography.labelSmall)
+                    Row {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(answer.questionText, style = MaterialTheme.typography.bodyMedium)
+                            Text(AnswerEvaluator.display(answer.answerType, answer.answer), style = MaterialTheme.typography.titleMedium)
+                            if (answer.note.isNotBlank()) Text(answer.note, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (onToggleFlag != null && answer.answerType == AnswerType.TEXT) {
+                            FlagButton(answer.flagged) { onToggleFlag(answer) }
+                        }
                     }
-                    if (onToggleFlag != null && answer.answerType == AnswerType.TEXT) {
-                        IconButton(onClick = { onToggleFlag(answer) }) {
-                            Icon(
-                                if (answer.flagged) Icons.Filled.Flag else Icons.Outlined.Flag,
-                                contentDescription = if (answer.flagged) "Unflag" else "Flag as warning sign",
-                            )
+                    if (answer.followUpQuestion.isNotBlank()) {
+                        Row {
+                            Column(Modifier.weight(1f).padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(answer.followUpQuestion, style = MaterialTheme.typography.bodyMedium)
+                                Text(AnswerEvaluator.display(AnswerType.TEXT, answer.followUp), style = MaterialTheme.typography.titleMedium)
+                            }
+                            if (onToggleFollowUpFlag != null && answer.followUp.isNotBlank()) {
+                                FlagButton(answer.followUpFlagged) { onToggleFollowUpFlag(answer) }
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FlagButton(flagged: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(
+            if (flagged) Icons.Filled.Flag else Icons.Outlined.Flag,
+            contentDescription = if (flagged) "Unflag" else "Flag as warning sign",
+        )
     }
 }
